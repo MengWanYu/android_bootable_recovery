@@ -189,17 +189,24 @@ static bool WriteBufferToPartition(const FileContents& file_contents, const Part
       return false;
     }
 
-    const char* partition = pieces[1].c_str();
+    std::vector<unsigned char> buffer(32768);
+    size_t p = 0;
+    while (p < len) {
+      size_t to_read = len - p;
+      if (to_read > 32768) to_read = 32768;
 
+      if (!android::base::ReadFully(fd, buffer.data(), to_read)) {
         PLOG(ERROR) << "Failed to verify-read " << partition << " at " << p;
         return false;
       }
 
-      if (memcmp(buffer, data + p, to_read) != 0) {
+      if (memcmp(buffer.data(), data + p, to_read) != 0) {
         LOG(ERROR) << "Verification failed starting at " << p;
         start = p;
         break;
       }
+
+      p += to_read;
     }
 
     if (start == len) {
