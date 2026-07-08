@@ -1388,6 +1388,139 @@ Value* AddSlotSuffixFn(const char* name, State* state,
   return StringValue(updater_runtime->AddSlotSuffix(arg));
 }
 
+// --- vivo/MTK OTA compatibility stubs ---
+
+// switch_active(part1, part2) - MTK dual-slot switch
+// No-op: slot switching is dangerous and unnecessary for TWRP OTA
+Value* SwitchActiveFn(const char* name, State* state, const std::vector<std::unique_ptr<Expr>>& argv) {
+  if (argv.size() != 2) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s() expects 2 args, got %zu", name, argv.size());
+  }
+
+  std::vector<std::string> args;
+  if (!ReadArgs(state, argv, &args)) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s(): Failed to parse the argument(s)", name);
+  }
+
+  state->updater->UiPrint("[TWRP] switch_active(" + args[0] + ", " + args[1] + ") -- no-op (slot switching disabled)");
+  return StringValue("t");
+}
+
+// set_mtupdate_stage(path, stage) - MTK update stage tracking
+// Writes stage number to tracking file for OTA resume support
+Value* SetMtUpdateStageFn(const char* name, State* state, const std::vector<std::unique_ptr<Expr>>& argv) {
+  if (argv.size() != 2) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s() expects 2 args, got %zu", name, argv.size());
+  }
+
+  std::vector<std::string> args;
+  if (!ReadArgs(state, argv, &args)) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s(): Failed to parse the argument(s)", name);
+  }
+
+  auto updater_runtime = state->updater->GetRuntime();
+  if (!updater_runtime->WriteStringToFile(args[1], args[0])) {
+    PLOG(ERROR) << name << ": Failed to write stage to " << args[0];
+    return StringValue("");
+  }
+  return StringValue("t");
+}
+
+// get_mtupdate_stage(path) - MTK update stage query
+// Returns the current stage as a string (for less_than_int comparison)
+// Returns "0" if the file doesn't exist (initial state)
+Value* GetMtUpdateStageFn(const char* name, State* state, const std::vector<std::unique_ptr<Expr>>& argv) {
+  if (argv.size() != 1) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s() expects 1 arg, got %zu", name, argv.size());
+  }
+
+  std::vector<std::string> args;
+  if (!ReadArgs(state, argv, &args)) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s(): Failed to parse the argument(s)", name);
+  }
+
+  std::string contents;
+  auto updater_runtime = state->updater->GetRuntime();
+  if (updater_runtime->ReadFileToString(args[0], &contents)) {
+    // Trim whitespace
+    contents.erase(contents.find_last_not_of(" \t\n\r") + 1);
+    return StringValue(contents);
+  }
+
+  // File not found = stage 0 (fresh start)
+  return StringValue("0");
+}
+
+// show_mtupdate_stage(path) - Display MTK update stage
+Value* ShowMtUpdateStageFn(const char* name, State* state, const std::vector<std::unique_ptr<Expr>>& argv) {
+  if (argv.size() != 1) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s() expects 1 arg, got %zu", name, argv.size());
+  }
+
+  std::vector<std::string> args;
+  if (!ReadArgs(state, argv, &args)) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s(): Failed to parse the argument(s)", name);
+  }
+
+  std::string contents;
+  auto updater_runtime = state->updater->GetRuntime();
+  if (updater_runtime->ReadFileToString(args[0], &contents)) {
+    contents.erase(contents.find_last_not_of(" \t\n\r") + 1);
+    state->updater->UiPrint("MTK update stage: " + contents);
+  } else {
+    state->updater->UiPrint("MTK update stage: 0 (not started)");
+  }
+  return StringValue("t");
+}
+
+// update_sleep(seconds) - vivo OTA sleep/wait
+Value* UpdateSleepFn(const char* name, State* state, const std::vector<std::unique_ptr<Expr>>& argv) {
+  if (argv.size() != 1) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s() expects 1 arg, got %zu", name, argv.size());
+  }
+
+  std::vector<std::string> args;
+  if (!ReadArgs(state, argv, &args)) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s(): Failed to parse the argument(s)", name);
+  }
+
+  int seconds;
+  if (!android::base::ParseInt(args[0], &seconds)) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s(): Failed to parse seconds from \"%s\"", name, args[0].c_str());
+  }
+
+  state->updater->UiPrint("update_sleep(" + args[0] + ")...");
+  sleep(seconds);
+  return StringValue("t");
+}
+
+// file_image_resize_cow(type, path, flag) - vivo COW/DYN partition resize
+// No-op: COW partition management is a vivo OTA internal detail
+Value* FileImageResizeCowFn(const char* name, State* state, const std::vector<std::unique_ptr<Expr>>& argv) {
+  if (argv.size() != 3) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s() expects 3 args, got %zu", name, argv.size());
+  }
+
+  std::vector<std::string> args;
+  if (!ReadArgs(state, argv, &args)) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s(): Failed to parse the argument(s)", name);
+  }
+
+  state->updater->UiPrint("[TWRP] file_image_resize_cow(" + args[0] + ", " + args[1] + ", " + args[2] + ") -- no-op");
+  return StringValue("t");
+}
+
+// post_ota_action() - vivo post-OTA cleanup
+// No-op: TWRP handles post-install cleanup independently
+Value* PostOtaActionFn(const char* name, State* state, const std::vector<std::unique_ptr<Expr>>& argv) {
+  if (argv.size() != 0) {
+    return ErrorAbort(state, kArgsParsingFailure, "%s() expects 0 args, got %zu", name, argv.size());
+  }
+
+  state->updater->UiPrint("[TWRP] post_ota_action() -- no-op");
+  return StringValue("t");
+}
+
 void RegisterInstallFunctions() {
   RegisterFunction("mount", MountFn);
   RegisterFunction("is_mounted", IsMountedFn);
@@ -1442,4 +1575,13 @@ void RegisterInstallFunctions() {
   RegisterFunction("tune2fs", Tune2FsFn);
 
   RegisterFunction("add_slot_suffix", AddSlotSuffixFn);
+
+  // vivo/MTK OTA compatibility
+  RegisterFunction("switch_active", SwitchActiveFn);
+  RegisterFunction("set_mtupdate_stage", SetMtUpdateStageFn);
+  RegisterFunction("get_mtupdate_stage", GetMtUpdateStageFn);
+  RegisterFunction("show_mtupdate_stage", ShowMtUpdateStageFn);
+  RegisterFunction("update_sleep", UpdateSleepFn);
+  RegisterFunction("file_image_resize_cow", FileImageResizeCowFn);
+  RegisterFunction("post_ota_action", PostOtaActionFn);
 }
