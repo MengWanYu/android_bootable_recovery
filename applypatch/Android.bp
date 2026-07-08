@@ -41,7 +41,10 @@ cc_defaults {
 
     local_include_dirs: [
         "include",
-        "..",
+    ],
+
+    include_dirs: [
+        "bootable/recovery",
     ],
 }
 
