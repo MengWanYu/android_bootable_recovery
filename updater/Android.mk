@@ -84,7 +84,8 @@ LOCAL_SRC_FILES := \
     updater_main.cpp
 
 LOCAL_C_INCLUDES := \
-    $(LOCAL_PATH)/include
+    $(LOCAL_PATH)/include \
+    $(LOCAL_PATH)/..
 
 LOCAL_CFLAGS := \
     -Wall \
