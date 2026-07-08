@@ -375,7 +375,7 @@ Value* MountFn(const char* name, State* state, const std::vector<std::unique_ptr
   if (updater->GetRuntime()->Mount(location, mount_point, fs_type, mount_options) != 0) {
     updater->UiPrint(android::base::StringPrintf("%s: Failed to mount %s at %s: %s", name,
                                                  location.c_str(), mount_point.c_str(),
-                                                 strerror(errno)));
+                                                 strerror(errno))));
     return StringValue("");
   }
 
@@ -428,7 +428,7 @@ Value* UnmountFn(const char* name, State* state, const std::vector<std::unique_p
     return nullptr;
   } else if (result != 0) {
     updater->UiPrint(android::base::StringPrintf("Failed to unmount %s: %s", mount_point.c_str(),
-                                                 strerror(errno)));
+                                                 strerror(errno))));
   }
 
   return StringValue(mount_point);
@@ -686,23 +686,23 @@ Value* PackageExtractDirFn(const char* name, State* state,
   std::string prefix = zip_path;
   if (!prefix.empty() && prefix.back() != '/') prefix += '/';
   ZipEntry64 entry;
+  std::string entry_name;
   bool success = true;
-  int32_t ret = StartIteration(za, &cookie, &prefix, nullptr);
+  int32_t ret = StartIteration(za, &cookie, nullptr, nullptr);
   if (ret == 0) {
-    while ((ret = Next(cookie, &entry)) == 0) {
-      std::string rel_path(entry.name);
-      if (rel_path.size() <= prefix.size()) continue;
-      rel_path = rel_path.substr(prefix.size());
+    while ((ret = Next(cookie, &entry, &entry_name)) == 0) {
+      if (entry_name.size() <= prefix.size() || entry_name.substr(0, prefix.size()) != prefix)
+        continue;
+      std::string rel_path = entry_name.substr(prefix.size());
+      if (rel_path.empty()) continue;
       std::string target = dest_path + "/" + rel_path;
-      // Create parent directories
-      std::string parent = target.substr(0, target.rfind('/'));
       make_parents(target);
       android::base::unique_fd fd(TEMP_FAILURE_RETRY(
           open(target.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR)));
       if (fd != -1) {
         int32_t extract_ret = ExtractEntryToFile(za, &entry, fd);
         if (extract_ret != 0) {
-          LOG(ERROR) << "package_extract_dir: Failed to extract " << entry.name;
+          LOG(ERROR) << "package_extract_dir: Failed to extract " << entry_name;
           success = false;
         }
         fsync(fd);
@@ -789,7 +789,7 @@ static struct perm_parsed_args ParsePermArgs(State * state,
         parsed.uid = uid;
         parsed.has_uid = true;
       } else {
-        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid UID \"%s\"\n", args[i + 1].c_str()))
+        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid UID \"%s\"\n", args[i + 1].c_str())));
         bad++;
       }
       continue;
@@ -800,7 +800,7 @@ static struct perm_parsed_args ParsePermArgs(State * state,
         parsed.gid = gid;
         parsed.has_gid = true;
       } else {
-        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid GID \"%s\"\n", args[i + 1].c_str()))
+        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid GID \"%s\"\n", args[i + 1].c_str())));
         bad++;
       }
       continue;
@@ -811,7 +811,7 @@ static struct perm_parsed_args ParsePermArgs(State * state,
         parsed.mode = mode;
         parsed.has_mode = true;
       } else {
-        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid mode \"%s\"\n", args[i + 1].c_str()))
+        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid mode \"%s\"\n", args[i + 1].c_str())));
         bad++;
       }
       continue;
@@ -822,7 +822,7 @@ static struct perm_parsed_args ParsePermArgs(State * state,
         parsed.dmode = mode;
         parsed.has_dmode = true;
       } else {
-        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid dmode \"%s\"\n", args[i + 1].c_str()))
+        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid dmode \"%s\"\n", args[i + 1].c_str())));
         bad++;
       }
       continue;
@@ -833,7 +833,7 @@ static struct perm_parsed_args ParsePermArgs(State * state,
         parsed.fmode = mode;
         parsed.has_fmode = true;
       } else {
-        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid fmode \"%s\"\n", args[i + 1].c_str()))
+        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid fmode \"%s\"\n", args[i + 1].c_str())));
         bad++;
       }
       continue;
@@ -844,23 +844,23 @@ static struct perm_parsed_args ParsePermArgs(State * state,
         parsed.capabilities = capabilities;
         parsed.has_capabilities = true;
       } else {
-        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid capabilities \"%s\"\n", args[i + 1].c_str()))
+        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid capabilities \"%s\"\n", args[i + 1].c_str())));
         bad++;
       }
       continue;
     }
     if (args[i] == "selabel") {
       if (!args[i + 1].empty()) {
-        parsed.selabel = args[i + 1].c_str();
+        parsed.selabel = args[i + 1].c_str());
         parsed.has_selabel = true;
       } else {
-        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid selabel \"%s\"\n", args[i + 1].c_str()))
+        state->updater->UiPrint(android::base::StringPrintf("ParsePermArgs: invalid selabel \"%s\"\n", args[i + 1].c_str())));
         bad++;
       }
       continue;
     }
     if (max_warnings != 0) {
-      printf("ParsedPermArgs: unknown key \"%s\", ignoring\n", args[i].c_str());
+      printf("ParsedPermArgs: unknown key \"%s\", ignoring\n", args[i].c_str()));
       max_warnings--;
       if (max_warnings == 0) {
         LOG(INFO) << "ParsedPermArgs: suppressing further warnings";
@@ -877,7 +877,7 @@ static int ApplyParsedPerms(State* state, const char* filename, const struct sta
   if (parsed.has_selabel) {
     if (lsetfilecon(filename, parsed.selabel) != 0) {
       state->updater->UiPrint(android::base::StringPrintf( "ApplyParsedPerms: lsetfilecon of %s to %s failed: %s\n", filename,
-               parsed.selabel, strerror(errno));
+               parsed.selabel, strerror(errno)));
       bad++;
     }
   }
@@ -890,7 +890,7 @@ static int ApplyParsedPerms(State* state, const char* filename, const struct sta
   if (parsed.has_uid) {
     if (chown(filename, parsed.uid, -1) < 0) {
       state->updater->UiPrint(android::base::StringPrintf( "ApplyParsedPerms: chown of %s to %d failed: %s\n", filename, parsed.uid,
-               strerror(errno));
+               strerror(errno)));
       bad++;
     }
   }
@@ -898,7 +898,7 @@ static int ApplyParsedPerms(State* state, const char* filename, const struct sta
   if (parsed.has_gid) {
     if (chown(filename, -1, parsed.gid) < 0) {
       state->updater->UiPrint(android::base::StringPrintf( "ApplyParsedPerms: chgrp of %s to %d failed: %s\n", filename, parsed.gid,
-               strerror(errno));
+               strerror(errno)));
       bad++;
     }
   }
@@ -906,7 +906,7 @@ static int ApplyParsedPerms(State* state, const char* filename, const struct sta
   if (parsed.has_mode) {
     if (chmod(filename, parsed.mode) < 0) {
       state->updater->UiPrint(android::base::StringPrintf( "ApplyParsedPerms: chmod of %s to %d failed: %s\n", filename, parsed.mode,
-               strerror(errno));
+               strerror(errno)));
       bad++;
     }
   }
@@ -914,7 +914,7 @@ static int ApplyParsedPerms(State* state, const char* filename, const struct sta
   if (parsed.has_dmode && S_ISDIR(statptr->st_mode)) {
     if (chmod(filename, parsed.dmode) < 0) {
       state->updater->UiPrint(android::base::StringPrintf( "ApplyParsedPerms: chmod of %s to %d failed: %s\n", filename, parsed.dmode,
-               strerror(errno));
+               strerror(errno)));
       bad++;
     }
   }
@@ -922,7 +922,7 @@ static int ApplyParsedPerms(State* state, const char* filename, const struct sta
   if (parsed.has_fmode && S_ISREG(statptr->st_mode)) {
     if (chmod(filename, parsed.fmode) < 0) {
       state->updater->UiPrint(android::base::StringPrintf( "ApplyParsedPerms: chmod of %s to %d failed: %s\n", filename, parsed.fmode,
-               strerror(errno));
+               strerror(errno)));
       bad++;
     }
   }
@@ -932,7 +932,7 @@ static int ApplyParsedPerms(State* state, const char* filename, const struct sta
       if ((removexattr(filename, XATTR_NAME_CAPS) == -1) && (errno != ENODATA)) {
         // Report failure unless it's ENODATA (attribute not set)
         state->updater->UiPrint(android::base::StringPrintf( "ApplyParsedPerms: removexattr of %s to %" PRIx64 " failed: %s\n", filename,
-                 parsed.capabilities, strerror(errno));
+                 parsed.capabilities, strerror(errno)));
         bad++;
       }
     } else {
@@ -945,7 +945,7 @@ static int ApplyParsedPerms(State* state, const char* filename, const struct sta
       cap_data.data[1].inheritable = 0;
       if (setxattr(filename, XATTR_NAME_CAPS, &cap_data, sizeof(cap_data), 0) < 0) {
         state->updater->UiPrint(android::base::StringPrintf( "ApplyParsedPerms: setcap of %s to %" PRIx64 " failed: %s\n", filename,
-                 parsed.capabilities, strerror(errno));
+                 parsed.capabilities, strerror(errno)));
         bad++;
       }
     }
