@@ -68,7 +68,6 @@
 #include <cutils/memory.h>  // for strlcpy
 #endif
 
-#ifdef TW_PROTECT_BOOTLOADER
 #include <set>
 
 static bool IsProtectedPath(const std::string& dest_path) {
@@ -89,12 +88,11 @@ static bool IsProtectedPath(const std::string& dest_path) {
   }
   return false;
 }
-#endif
 
 // write_raw_pl_image(filename, partition)
 // MTK-specific: writes preloader raw image to mmcblk0boot partition.
-// When TW_PROTECT_BOOTLOADER is defined, this function is blocked to prevent
-// accidental bootloader overwrite via OTA.
+// Always blocked: this function is unconditionally protected in the MengWanYu fork
+// to prevent accidental bootloader overwrite via OTA.
 Value* WriteRawPlImageFn(const char* name, State* state,
                          const std::vector<std::unique_ptr<Expr>>& argv) {
   if (argv.size() != 2) {
@@ -111,41 +109,9 @@ Value* WriteRawPlImageFn(const char* name, State* state,
   const std::string& zip_path = args[0];
   std::string dest_path = args[1];
 
-#ifdef TW_PROTECT_BOOTLOADER
   state->updater->UiPrint("[PROTECTED] write_raw_pl_image(" + zip_path + ", " + dest_path +
                           ") -- skipped (bootloader/preloader protected)");
   return StringValue("t");
-#else
-  state->updater->UiPrint("write_raw_pl_image: " + zip_path + " -> " + dest_path);
-
-  ZipArchiveHandle za = state->updater->GetPackageHandle();
-  ZipEntry64 entry;
-  if (FindEntry(za, zip_path, &entry) != 0) {
-    LOG(ERROR) << name << ": no " << zip_path << " in package";
-    return StringValue("");
-  }
-
-  android::base::unique_fd fd(TEMP_FAILURE_RETRY(
-      open(dest_path.c_str(), O_WRONLY)));
-  if (fd == -1) {
-    PLOG(ERROR) << name << ": can't open " << dest_path << " for write";
-    return StringValue("");
-  }
-
-  bool success = true;
-  int32_t ret = ExtractEntryToFile(za, &entry, fd);
-  if (ret != 0) {
-    LOG(ERROR) << name << ": Failed to extract \"" << zip_path << "\" to \"" << dest_path << "\": "
-               << ErrorCodeString(ret);
-    success = false;
-  }
-  if (fsync(fd) == -1) {
-    PLOG(ERROR) << "fsync of \"" << dest_path << "\" failed";
-    success = false;
-  }
-
-  return StringValue(success ? "t" : "");
-#endif
 }
 
 static bool UpdateBlockDeviceNameForPartition(UpdaterInterface* updater, Partition* partition) {
@@ -209,13 +175,11 @@ Value* PackageExtractFileFn(const char* name, State* state,
       dest_path = block_device_name;
     }
 
-#ifdef TW_PROTECT_BOOTLOADER
     if (IsProtectedPath(dest_path)) {
       state->updater->UiPrint("[PROTECTED] package_extract_file(" + zip_path +
                               ", " + dest_path + ") -- skipped (partition protected)");
       return StringValue("t");
     }
-#endif
 
     android::base::unique_fd fd(TEMP_FAILURE_RETRY(
         open(dest_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR)));
